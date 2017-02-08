@@ -1,0 +1,179 @@
+---
+title: "STA221"
+author: "Neil Montgomery"
+date: "Last edited: `r format(Sys.time(), '%Y-%m-%d %H:%M')`"
+output: 
+  beamer_presentation:
+    keep_tex: TRUE
+    incremental: TRUE
+    df_print: tibble
+    fig_caption: FALSE
+classoption: aspectratio=169
+header-includes:
+- \newcommand{\ve}{\varepsilon}
+---
+
+```{r setup, include=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = FALSE, message=FALSE,
+                      dev='pdf', fig.width=5, fig.asp=0.618, fig.align='center')
+options(tibble.width=70, scipen = 999, tibble.print_min=5, show.signif.stars = FALSE)
+library(tidyverse)
+library(readxl)
+```
+
+
+```{r}
+bodyfat <- read_csv("Body_fat.csv")
+
+options(scipen=6)
+bf_wt <- bodyfat %>% 
+  lm(`Pct BF` ~ Weight, data = .) 
+
+bf_ht <- bodyfat %>% 
+  lm(`Pct BF` ~ Height, data = .) 
+```
+
+## some test info
+
+Bring a calculator. Suggested methodology:
+
+1. Somehow get a calculator if you don't have one.
+
+2. Bring it to the test.
+
+\pause This is a two-step process. If you have one and don't bring it, you won't be able to use it. 
+
+\pause I tease because there is always someone who forgets.
+
+\pause Time and location: Monday, February 13, 15:20 to 16:50, in this room BA1160.
+
+\pause There will be a formula sheet that comes with the test, along with $\chi^2$ and $t$ probability tables. I will publish these in advance so you will know what to expect.
+
+# estimation and prediction with regression models
+
+## estimate the mean response at a new $x$ value
+
+Suppose you want to estimate the mean "response" at some new $x_\nu$ (may
+or may not be one of the original $x$'s.)
+
+\pause The *true value* for the mean response is:
+$$\mu_\nu = \beta_0 + \beta_1 x_\nu$$
+
+\pause What's the "obvious" best guess using the data?
+$$\hat\mu_\nu = b_0 + b_1 x_\nu$$
+
+## estimate the mean response---with confidence
+
+A confidence interval will be as usual based on:
+$$\frac{\hat\mu_\nu - \mu_\nu}{s.e.(\hat\mu_\nu - \mu_\nu)} \sim t_{n-2}$$
+
+\pause The standard error of $\hat\mu_\nu - \mu_\nu$ is:
+$$s_e\sqrt{\frac{1}{n} + \frac{(x_\nu - \overline x)^2}{S_{xx}}}$$
+
+\pause So the 95\% C.I. for the mean response at $x_\nu$ will be:
+$$\hat\mu_\nu \pm t^*_{n-2} s_e\sqrt{\frac{1}{n} + \frac{(x_\nu - \overline x)^2}{S_{xx}}}$$
+
+## weight model example
+
+Let's make a 95\% CI for the mean response at a weight of $x_\nu = 200$ pounds. Here's the R output:
+
+```{r}
+source("multiplot.R")
+library(broom)
+short_print_lm(summary(bf_wt))
+```
+
+## Weight at 200 example
+
+```{r}
+options(digits = 2)
+```
+
+\pause The estimate will be `r round(coefficients(bf_wt)[1], 3)` + `r round(coefficients(bf_wt)[2], 3)`(200) = `r predict(bf_wt, newdata = data_frame(Weight=200))`.
+
+\pause $s_e = `r glance(bf_wt)$sigma`$
+
+\pause We would need to be given $\overline x$, which in this case is the sample average of the `Weight` variable. This is: `r mean(bodyfat$Weight)`.
+
+\pause We also need $S_{xx}$, which is `r (nrow(bodyfat)-1)*var(bodyfat$Weight)`. Could we have determined that from the output given?
+
+\pause So the 95\% CI for the mean `Pct BF` at `Weight`=200 is:
+
+
+$$`r predict(bf_wt, newdata = data_frame(Weight=200))` \pm `r qt(0.975, 248)` \cdot `r glance(bf_wt)$sigma`
+\sqrt{\frac{1}{`r nrow(bodyfat)`} + \frac{(200 - `r mean(bodyfat$Weight)`)^2}{`r (nrow(bodyfat)-1)*var(bodyfat$Weight)`}}$$
+or:
+$$(`r predict(bf_wt, newdata = data_frame(Weight=200), interval = "c")[2]`,
+`r predict(bf_wt, newdata = data_frame(Weight=200), interval = "c")[3]`)$$
+
+
+## picture of 95\% CI for mean response - weight model
+
+```{r}
+bodyfat %>% 
+  ggplot(aes(x=Weight, y=`Pct BF`)) + geom_point(cex=0.5) + geom_smooth(method="lm")
+```
+
+## predict $y$ at a new $x$ value
+
+Suppose you want to predict what $y$ might be at some new $x_\nu$ (may
+or may not be one of the original $x$'s.)
+
+\pause \textbf{There is no \textit{true} value. We are predicting something random (and un-knowable)---not estimating something fixed (but unknown.)}
+
+\pause What's the "obvious" best guess using the data?
+$$\hat y_\nu = b_0 + b_1 x_\nu$$
+The *same* guess as the estimate for $\mu_\nu$. 
+
+\pause The variation inherent in such a prediction is different.
+
+## predict a new value---with confidence
+
+A prediction interval will be based on, similar to a confidence interval:
+$$\frac{\hat y_\nu - y_\nu}{s.e.(\hat y_\nu - y_\nu)} \sim t_{n-2}$$
+
+\pause The standard error of $\hat y_\nu - y_\nu$ is:
+$$s_e\sqrt{1+ \frac{1}{n} + \frac{(x_\nu - \overline x)^2}{S_{xx}}}$$
+
+## predict at `Weight` of 200
+
+\pause The prediction will be (also) `r round(coefficients(bf_wt)[1], 3)` + `r round(coefficients(bf_wt)[2], 3)`(200) = `r predict(bf_wt, newdata = data_frame(Weight=200))`.
+
+\pause But the 95\% "prediction interval" will be quite a bit wider:
+
+$$`r predict(bf_wt, newdata = data_frame(Weight=200))` \pm `r qt(0.975, 248)` \cdot `r glance(bf_wt)$sigma`
+\sqrt{1 + \frac{1}{`r nrow(bodyfat)`} + \frac{(200 - `r mean(bodyfat$Weight)`)^2}{`r (nrow(bodyfat)-1)*var(bodyfat$Weight)`}}$$
+or:
+$$(`r predict(bf_wt, newdata = data_frame(Weight=200), interval = "p")[2]`,
+`r predict(bf_wt, newdata = data_frame(Weight=200), interval = "p")[3]`)$$
+
+## picture of 95\% PI weight model
+
+```{r, warning=FALSE}
+
+bf_p <- as_data_frame(predict(bf_wt, interval = "p"))
+bf_aug <- cbind(bodyfat, bf_p)
+
+bf_aug %>% 
+  ggplot(aes(x=Weight, y=`Pct BF`)) + 
+  geom_point() + 
+  geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=0.2, linetype=1)
+```
+
+## picture of both intervals
+
+```{r}
+bf_aug %>% 
+  ggplot(aes(x=Weight, y=`Pct BF`)) + 
+  geom_point() + 
+  geom_smooth(method = "lm") + 
+  geom_ribbon(aes(ymin=lwr, ymax=upr), alpha=0.2, linetype=1)
+```
+
+## "you can never be too rich or too thin" - The Duchess of Windsor
+
+```{r}
+bodyfat %>% 
+  arrange(`Pct BF`)
+```
+
